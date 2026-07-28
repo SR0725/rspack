@@ -349,12 +349,7 @@ impl AssetData {
     hash_to_new_hash: &HashMap<String, String>,
     hash_ac: &AhoCorasick,
   ) -> BoxSource {
-    (if without_own {
-      &self.new_source_without_own
-    } else {
-      &self.new_source
-    })
-    .get_or_init(|| {
+    let compute = || {
       if let AssetDataContent::String(content) = &self.content
         && (!self.own_hashes.is_empty()
           || self
@@ -367,9 +362,7 @@ impl AssetData {
           let replace_to = if without_own && self.own_hashes.contains(hash) {
             ""
           } else {
-            hash_to_new_hash
-              .get(hash)
-              .expect("RealContentHashPlugin: should have new hash")
+            hash_to_new_hash.get(hash).map_or(hash, String::as_str)
           };
           dst.push_str(replace_to);
           true
@@ -377,7 +370,26 @@ impl AssetData {
         return RawStringSource::from(new_content).boxed();
       }
       self.old_source.clone()
+    };
+
+    // A cycle is broken by hashing one member against the provisional hashes
+    // of the other members. Don't cache that intermediate source: once every
+    // hash has been computed, the final asset still needs all references
+    // replaced with their real hashes.
+    if self
+      .referenced_hashes
+      .iter()
+      .any(|hash| !hash_to_new_hash.contains_key(hash))
+    {
+      return compute();
+    }
+
+    (if without_own {
+      &self.new_source_without_own
+    } else {
+      &self.new_source
     })
+    .get_or_init(compute)
     .clone()
   }
 }
@@ -463,9 +475,15 @@ impl OrderedHashesBuilder<'_> {
         continue;
       }
       if stack.contains(dep) {
-        // Safety: all chunk-level hash will be collected in runtime chunk
-        // so there shouldn't have circular hash dependency between chunks
-        panic!("RealContentHashPlugin: circular hash dependency");
+        // There is no exact fixed point when assets embed each other's real
+        // content hashes. Break the cycle at this edge and hash this member
+        // against the dependency's provisional hash. The remaining edges
+        // still propagate changes through the cycle.
+        hash_dependencies
+          .get_mut(hash)
+          .expect("RealContentHashPlugin: should have hash dependencies")
+          .remove(dep);
+        continue;
       }
       self.add_to_ordered_hashes(dep, ordered_hashes, stack, hash_dependencies);
     }
