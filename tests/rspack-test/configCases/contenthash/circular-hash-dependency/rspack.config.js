@@ -15,7 +15,7 @@ class CircularHashDependencyPlugin {
             compilation.emitAsset(
               'a.aaaaaaaa.js',
               new sources.RawSource(source),
-              { contenthash: 'aaaaaaaa' },
+              { contenthash: ['aaaaaaaa', 'cccccccc'] },
             );
             compilation.emitAsset(
               'b.bbbbbbbb.js',

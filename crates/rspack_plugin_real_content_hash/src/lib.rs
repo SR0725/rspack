@@ -380,6 +380,11 @@ impl AssetData {
       .referenced_hashes
       .iter()
       .any(|hash| !hash_to_new_hash.contains_key(hash))
+      || (!without_own
+        && self
+          .own_hashes
+          .iter()
+          .any(|hash| !hash_to_new_hash.contains_key(hash)))
     {
       return compute();
     }
