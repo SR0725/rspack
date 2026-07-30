@@ -15,9 +15,7 @@ use swc_experimental_ecma_semantic::resolver::Semantic;
 
 pub(crate) use self::parser::StatementPath;
 pub use self::{
-  context_dependency_helper::{
-    ContextModuleScanResult, create_context_dependency, create_context_options,
-  },
+  context_dependency_helper::{ContextModuleScanResult, create_context_dependency},
   parser::{
     AllowedMemberTypes, AtomMembers, CallExpressionInfo, CallHooksName,
     DestructuringAssignmentProperties, DestructuringAssignmentProperty, ExportedVariableInfo,
